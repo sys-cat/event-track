@@ -45,7 +45,7 @@ func addEvent(c *gin.Context) {
   var conf Config
   _, err := toml.DecodeFile("./config.toml", &conf)
   if err != nil {
-    log.Fatalln(err)
+    log.Println(err)
   }
   log.Println("open db")
   var con string
@@ -53,7 +53,7 @@ func addEvent(c *gin.Context) {
   log.Println(con)
   db, err := sql.Open("mysql", con)
   if err != nil {
-    log.Fatalln(err)
+    log.Println(err)
   }
   var table string
   if req.ENV == "production" {
@@ -64,13 +64,13 @@ func addEvent(c *gin.Context) {
   log.Println("create query")
   query, err := db.Prepare(fmt.Sprintf("insert into %s (rid, event_id, referer, created_at) values(\"%s\", \"%d\", \"%s\", \"%s\")", table, req.RID, req.EID, req.REF, time.Now().Format("2006-01-02 15:04:05")))
   if err != nil {
-    log.Fatalln(err)
+    log.Println(err)
   }
   defer query.Close()
   result, err := query.Exec()
   log.Println("result query")
   if err != nil {
-    log.Fatalln(err)
+    log.Println(err)
   }
   log.Println("valiable query")
   log.Println(result)
