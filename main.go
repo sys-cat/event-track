@@ -25,6 +25,13 @@ type Request struct {
   ENV string `json:"environment"`
 }
 
+func setAccessHeader(c *gin.Context) {
+  c.Header("Access-Control-Allow-Origin", "*")
+  c.Header("Access-Control-Allow-Credentials", "true")
+  c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
+  c.Header("Access-Control-Allow-Methods","GET, POST, PUT, DELETE, OPTIONS")
+}
+
 func main() {
   router := gin.Default()
   router.POST("/", addEvent)
@@ -32,6 +39,7 @@ func main() {
 }
 
 func addEvent(c *gin.Context) {
+  setAccessHeader(c)
   var req Request
   c.BindJSON(&req)
   var conf Config
