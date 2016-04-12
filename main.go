@@ -1,6 +1,7 @@
 package main
 
 import (
+  "os"
   "log"
   "fmt"
   "time"
@@ -16,6 +17,7 @@ type Config struct {
   Host  string `toml:"host"`
   Pass  string `toml:"pass"`
   DB    string `toml:"db"`
+  Env   string `toml:"env"`
 }
 
 type Request struct {
@@ -49,6 +51,9 @@ func init() {
   if err != nil {
     log.Fatalln(fmt.Sprintf("[Error] can not connect MySQL. DSN is %s", con))
   }
+  if conf.Env == "production" {
+    gin.SetMode(gin.ReleaseMode)
+  }
 }
 
 func setAccessHeader(c *gin.Context) {
@@ -60,6 +65,12 @@ func setAccessHeader(c *gin.Context) {
 
 func main() {
   router := gin.Default()
+  f, err := os.OpenFile("./event_track.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+  if err != nil {
+    panic(err)
+  }
+  gin.DefaultWriter = f
+  router.Use(gin.Logger())
   router.POST("/", addRecord)
   router.POST("/event/add", addEvent)
   router.POST("/event/report", getReport)
