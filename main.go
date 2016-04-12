@@ -25,6 +25,32 @@ type Request struct {
   ENV string `json:"environment"`
 }
 
+type ReqEvent struct {
+  ID int64 `json:"id"`
+  NAME string `json:"name"`
+}
+
+type ReqReport struct {
+  ID int64 `json:"id"`
+  ENV string `json:"environment"`
+}
+
+var con string
+var db *sql.DB
+
+func init() {
+  var conf Config
+  _, err := toml.DecodeFile("./config.toml", &conf)
+  if err != nil {
+    log.Fatalln("[Error] can not open `config.toml`")
+  }
+  con = fmt.Sprintf("%s:%s@%s/%s", conf.User, conf.Pass, conf.Host, conf.DB)
+  db, err = sql.Open("mysql", con)
+  if err != nil {
+    log.Fatalln(fmt.Sprintf("[Error] can not connect MySQL. DSN is %s", con))
+  }
+}
+
 func setAccessHeader(c *gin.Context) {
   c.Header("Access-Control-Allow-Origin", "*")
   c.Header("Access-Control-Allow-Credentials", "true")
@@ -34,49 +60,133 @@ func setAccessHeader(c *gin.Context) {
 
 func main() {
   router := gin.Default()
-  router.POST("/", addEvent)
+  router.POST("/", addRecord)
+  router.POST("/event/add", addEvent)
+  router.POST("/event/report", getReport)
   router.Run(":8080")
 }
 
-func addEvent(c *gin.Context) {
+func addRecord(c *gin.Context) {
   setAccessHeader(c)
+  // Getting Request Paramaters
   var req Request
   c.BindJSON(&req)
-  var conf Config
-  _, err := toml.DecodeFile("./config.toml", &conf)
-  if err != nil {
-    log.Println(err)
-  }
-  log.Println("open db")
-  var con string
-  con = conf.User+":"+conf.Pass+"@"+conf.Host+"/"+conf.DB
-  log.Println(con)
-  db, err := sql.Open("mysql", con)
-  if err != nil {
-    log.Println(err)
-  }
+  // Set environment
   var table string
   if req.ENV == "production" {
     table = "pro_event"
   } else {
     table = "stg_event"
   }
-  log.Println("create query")
-  query, err := db.Prepare(fmt.Sprintf("insert into %s (rid, event_id, referer, created_at) values(\"%s\", \"%d\", \"%s\", \"%s\")", table, req.RID, req.EID, req.REF, time.Now().Format("2006-01-02 15:04:05")))
+  q := fmt.Sprintf("insert into %s (rid, event_id, referer, created_at) values(\"%s\", \"%d\", \"%s\", \"%s\")", table, req.RID, req.EID, req.REF, time.Now().Format("2006-01-02 15:04:05"))
+  query, err := db.Prepare(q)
   if err != nil {
     log.Println(err)
+    c.JSON(500, gin.H{
+      "status": "500",
+      "error": "cant add record.",
+    })
   }
   defer query.Close()
   result, err := query.Exec()
-  log.Println("result query")
   if err != nil {
     log.Println(err)
+    c.JSON(500, gin.H{
+      "status": "500",
+      "error": "cant add record.",
+    })
   }
-  log.Println("valiable query")
-  log.Println(result)
-  db.Close()
-
+  log.Println(fmt.Sprintf("[Info] success Record.detail : %s", result))
   c.JSON(200, gin.H{
-    "status" : "OK",
+    "status" : "200",
+    "message" : "add record done.",
+  })
+}
+
+func addEvent(c *gin.Context) {
+  setAccessHeader(c)
+  // Getting Request Paramaters
+  var req ReqEvent
+  c.BindJSON(&req)
+  fmt.Println(fmt.Sprintf("paramater is %s", req))
+  // create add event query
+  var q string
+  if req.ID == 0 {
+    q = fmt.Sprintf("insert into events (name, created_at, updated_at) values(\"%s\", \"%s\", \"%s\")", req.NAME, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"))
+  } else {
+    q = fmt.Sprintf("insert into events (id, name, created_at, updated_at) values(%d, \"%s\", \"%s\", \"%s\")", req.ID, req.NAME, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"))
+  }
+  query, err := db.Prepare(q)
+  if err != nil {
+    log.Println(err)
+    c.JSON(500, gin.H{
+      "status":"500",
+      "error":"cant create query",
+    })
+  }
+  defer query.Close()
+  result, err := query.Exec()
+  if err != nil {
+    log.Println(err)
+    c.JSON(500, gin.H{
+      "status":"500",
+      "error":"cant create query",
+    })
+  }
+  log.Println(fmt.Sprintf("[Info] success Event.detail : %s", result))
+  c.JSON(200, gin.H{
+    "status":"200",
+    "message":"add event done.",
+  })
+}
+
+func getReport(c *gin.Context) {
+  setAccessHeader(c)
+  // Getting Request Paramaters
+  var req ReqReport
+  c.BindJSON(&req)
+  var table string
+  if req.ENV == "production" {
+    table = "pro_event"
+  } else {
+    table = "stg_event"
+  }
+  // create get event report query
+  q := fmt.Sprintf("select date_format(%s.created_at, '%%m') as month, date_format(%s.created_at, '%%d') as day, events.name, count(%s.id) as id from events left join %s on events.id = %s.event_id where events.id = %d group by date_format(%s.created_at, '%%Y%%m%%d')", table, table, table, table, table, req.ID, table)
+  rows, err := db.Query(q)
+  if err != nil {
+    log.Println(err)
+    c.JSON(500, gin.H{
+      "status":"500",
+      "error":"cant create query",
+    })
+  }
+  defer rows.Close()
+  // create result slice.
+  var name string
+  var res [][3]string
+  for rows.Next() {
+    var month string
+    var day string
+    var id string
+    if err := rows.Scan(&month, &day, &name, &id); err != nil {
+      log.Println(err)
+    }
+    var row [3]string = [3]string{month, day, id}
+    res = append(res, row)
+  }
+  if err := rows.Err(); err != nil {
+    log.Println(err)
+    c.JSON(500, gin.H{
+      "status":"500",
+      "error":"cant create query",
+    })
+  }
+  log.Println(fmt.Sprintf("[Info] success Get.detail : %s", res))
+  c.JSON(200, gin.H{
+    "status":"200",
+    "message":"report is going.",
+    "name":name,
+    "value":res,
   })
 }
