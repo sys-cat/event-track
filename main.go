@@ -74,6 +74,12 @@ func main() {
   router.POST("/", addRecord)
   router.POST("/event/add", addEvent)
   router.POST("/event/report", getReport)
+  router.GET("/call/status/check.json", func(c *gin.Context){
+    c.JSON(200,gin.H{
+      "status":"200",
+      "result":"OK",
+    })
+  })
   router.Run(":8080")
 }
 
