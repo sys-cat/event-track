@@ -58,7 +58,6 @@ func init() {
 
 func setAccessHeader(c *gin.Context) {
   c.Header("Access-Control-Allow-Origin", "*")
-  c.Header("Access-Control-Allow-Credentials", "true")
   c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
   c.Header("Access-Control-Allow-Methods","GET, POST, PUT, DELETE, OPTIONS")
 }
@@ -170,6 +169,7 @@ func getReport(c *gin.Context) {
   }
   // create get event report query
   q := fmt.Sprintf("select date_format(%s.created_at, '%%m') as month, date_format(%s.created_at, '%%d') as day, events.name, count(%s.id) as id from events left join %s on events.id = %s.event_id where events.id = %d group by date_format(%s.created_at, '%%Y%%m%%d')", table, table, table, table, table, req.ID, table)
+  log.Println(fmt.Sprintf("[Info] SQL %s", q))
   rows, err := db.Query(q)
   if err != nil {
     log.Println(err)
@@ -202,7 +202,6 @@ func getReport(c *gin.Context) {
   log.Println(fmt.Sprintf("[Info] success Get.detail : %s", res))
   c.JSON(200, gin.H{
     "status":"200",
-    "message":"report is going.",
     "name":name,
     "value":res,
   })
