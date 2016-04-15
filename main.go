@@ -37,6 +37,16 @@ type ReqReport struct {
   ENV string `json:"environment"`
 }
 
+type ReqEditClient struct {
+  ID int64 `json:"id"`
+  NAME string `json:"name"`
+}
+
+type ReqEditGenre struct {
+  ID int64 `json:"id"`
+  NAME string `json:"name"`
+}
+
 var con string
 var db *sql.DB
 
@@ -73,6 +83,8 @@ func main() {
   router.POST("/", addRecord)
   router.POST("/event/add", addEvent)
   router.POST("/event/report", getReport)
+  router.POST("/master/client/edit", editClient)
+  router.POST("/master/genre/edit", editGenre)
   router.GET("/call/status/check.json", func(c *gin.Context){
     c.JSON(200,gin.H{
       "status":"200",
@@ -204,5 +216,25 @@ func getReport(c *gin.Context) {
     "status":"200",
     "name":name,
     "value":res,
+  })
+}
+
+func editClient(c *gin.Context) {
+  setAccessHeader(c)
+  var req ReqEditClient
+  c.BindJSON(&c)
+  c.JSON(200, gin.H{
+    "status":"200",
+    "value":value,
+  })
+}
+
+func editGenre(c *gin.Context) {
+  setAccessHeader(c)
+  var req ReqEditGenre
+  c.BindJSON(&c)
+  c.JSON(200, gin.H{
+    "status":"200",
+    "value":value,
   })
 }
