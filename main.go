@@ -24,6 +24,9 @@ type Request struct {
   RID string `json:"rid"`
   EID int64 `json:"event"`
   REF string `json:"referer"`
+  GEN int64 `json: "genre_id"`
+  CLI int64 `json: "client_id"`
+  OTH string `json: "other"`
   ENV string `json:"environment"`
 }
 
@@ -106,7 +109,7 @@ func addRecord(c *gin.Context) {
   } else {
     table = "stg_event"
   }
-  q := fmt.Sprintf("insert into %s (rid, event_id, referer, created_at) values(\"%s\", \"%d\", \"%s\", \"%s\")", table, req.RID, req.EID, req.REF, time.Now().Format("2006-01-02 15:04:05"))
+  q := fmt.Sprintf("insert into %s (rid, event_id, referer, client_id, genre_id, other, created_at) values(\"%s\", %d, \"%s\", %d, %d, \"%s\" ,\"%s\")", table, req.RID, req.EID, req.REF, req.CLI, req.GEN, req.OTH, time.Now().Format("2006-01-02 15:04:05"))
   query, err := db.Prepare(q)
   if err != nil {
     log.Println(err)
