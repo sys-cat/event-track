@@ -222,19 +222,67 @@ func getReport(c *gin.Context) {
 func editClient(c *gin.Context) {
   setAccessHeader(c)
   var req ReqEditClient
-  c.BindJSON(&c)
+  c.BindJSON(&req)
+  var sql string
+  if req.ID != 0 {
+    sql = fmt.Sprintf("update client_master set name = \"%s\" where id = %d", req.NAME, req.ID)
+  } else {
+    sql = fmt.Sprintf("insert into client_master(name) values(\"%s\")", req.NAME)
+  }
+  query, err := db.Prepare(q)
+  if err != nil {
+    log.Println(err)
+    c.JSON(500, gin.H{
+      "status":"500",
+      "error":"cant create query",
+    })
+  }
+  defer query.Close()
+  result, err := query.Exec()
+  if err != nil {
+    log.Println(err)
+    c.JSON(500, gin.H{
+      "status":"500",
+      "error":"cant create query",
+    })
+  }
+  log.Println(fmt.Sprintf("[Info] success Event.detail : %s", result))
   c.JSON(200, gin.H{
     "status":"200",
-    "value":value,
+    "value":result,
   })
 }
 
 func editGenre(c *gin.Context) {
   setAccessHeader(c)
   var req ReqEditGenre
-  c.BindJSON(&c)
+  c.BindJSON(&req)
+  var sql string
+  if req.ID != 0 {
+    sql = fmt.Sprintf("update genre_master set name = \"%s\" where id = %d", req.NAME, req.ID)
+  } else {
+    sql = fmt.Sprintf("insert into genre_master(name) values(\"%s\")", req.NAME)
+  }
+  query, err := db.Prepare(q)
+  if err != nil {
+    log.Println(err)
+    c.JSON(500, gin.H{
+      "status":"500",
+      "error":"cant create query",
+    })
+  }
+  defer query.Close()
+  result, err := query.Exec()
+  if err != nil {
+    log.Println(err)
+    c.JSON(500, gin.H{
+      "status":"500",
+      "error":"cant create query",
+    })
+  }
+  log.Println(fmt.Sprintf("[Info] success Event.detail : %s", result))
   c.JSON(200, gin.H{
     "status":"200",
-    "value":value,
+    "value":result,
   })
 }
