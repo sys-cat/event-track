@@ -11,18 +11,18 @@ type Config struct {
 }
 
 type Elasticsearch struct {
-  URL   string
-  PORT  string
+  URL   string `toml:"url"`
+  PORT  string `toml:"port"`
 }
 
 type Environment struct {
-  VAL   string
+  VAL   string `toml:"env"`
 }
 
 type Blowfish struct {
-  SEC   string
-  SALT  string
-  PASS  string
+  SEC   string `toml:"secret"`
+  SALT  string `toml:"salt"`
+  PASS  string `toml:"pass"`
 }
 
 func getToml()(res *Config) {

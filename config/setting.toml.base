@@ -1,0 +1,11 @@
+[Elasticsearch]
+url = "localhost"
+port = "9200"
+
+[Environment]
+env = "staging"
+
+[Blowfish]
+secret = "secret"
+salt = "salt"
+pass = "password"

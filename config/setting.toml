@@ -1,5 +1,5 @@
 [Elasticsearch]
-url = "elasticsearch.elasticsearch.8f351749.svc.dockerapp.io/"
+url = "http://elasticsearch.elasticsearch.8f351749.svc.dockerapp.io/"
 port = "9200"
 
 [Environment]
