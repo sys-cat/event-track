@@ -11,6 +11,7 @@ import (
   "github.com/BurntSushi/toml"
 )
 
+// Config this app
 type Config struct {
   User  string `toml:"user"`
   Port  string `toml:"port"`
@@ -20,6 +21,7 @@ type Config struct {
   Env   string `toml:"env"`
 }
 
+// Request Paramaters
 type Request struct {
   RID string `json:"rid"`
   EID int64 `json:"event"`
@@ -49,6 +51,7 @@ type ReqEditGenre struct {
   ID int64 `json:"id"`
   NAME string `json:"name"`
 }
+
 
 var con string
 var db *sql.DB
@@ -95,6 +98,30 @@ func main() {
     })
   })
   router.Run(":8080")
+}
+
+func selectRecord(table string, wheres []string)(count int) {
+  var where string
+  for var key, value := range wheres {
+    if key == 0 {
+      where = fmt.Sprintf("%s", value)
+    } else {
+      where = fmt.Sprintf("%s and %s", where, value)
+    }
+  }
+  var sql string = fmt.Sprintf("select count(*) from %s where %s", table, where)
+  rows, err := db.Query(sql)
+  if err != nil {
+    log.Println(fmt.Sprintf("[Error] can not select %s data."))
+  }
+  defer rows.Close()
+  for rows.Next() {
+    err := rows.Scan(&count)
+    if err != nil {
+      log.Println("[Error] can not get select datas")
+    }
+  }
+  return count
 }
 
 func addRecord(c *gin.Context) {
@@ -224,15 +251,14 @@ func getReport(c *gin.Context) {
 
 func editClient(c *gin.Context) {
   setAccessHeader(c)
+  // Set Request Paramaters
   var req ReqEditClient
   c.BindJSON(&req)
   var sql string
-  if req.ID != 0 {
-    sql = fmt.Sprintf("update client_master set name = \"%s\" where id = %d", req.NAME, req.ID)
-  } else {
-    sql = fmt.Sprintf("insert into client_master(name) values(\"%s\")", req.NAME)
-  }
-  query, err := db.Prepare(q)
+  //sql = fmt.Sprintf("update client_master set name = \"%s\" where id = %d", req.NAME, req.ID)
+  sql = fmt.Sprintf("insert into client_master(name) values(\"%s\")", req.NAME)
+  log.Println(sql)
+  query, err := db.Prepare(sql)
   if err != nil {
     log.Println(err)
     c.JSON(500, gin.H{
@@ -266,7 +292,7 @@ func editGenre(c *gin.Context) {
   } else {
     sql = fmt.Sprintf("insert into genre_master(name) values(\"%s\")", req.NAME)
   }
-  query, err := db.Prepare(q)
+  query, err := db.Prepare(sql)
   if err != nil {
     log.Println(err)
     c.JSON(500, gin.H{
