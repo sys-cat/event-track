@@ -1,0 +1,11 @@
+[Elasticsearch]
+url = "elasticsearch.elasticsearch.8f351749.svc.dockerapp.io/"
+port = "9200"
+
+[Environment]
+env = "staging"
+
+[Blowfish]
+secret = "H8cT/,UnGWcV(iZ#FP7gFbceQGdp"
+salt = "EAT-API is Event and Access data Tracking API service."
+pass = "wWRa46_YGd7MM#!$x5J%H6AD#Z6~/5RL"
