@@ -23,4 +23,5 @@ _testmain.go
 *.test
 *.prof
 event_track.log
-*/*.toml
+config.toml
+setting.toml
