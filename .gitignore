@@ -25,3 +25,4 @@ _testmain.go
 event_track.log
 config.toml
 setting.toml
+*.toml

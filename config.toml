@@ -1,6 +1,0 @@
-user = "root"
-port = "3306"
-host = "" # `localhost`, `127.0.0.1` is not write
-pass = ""
-db = "event"
-env = "staging"
