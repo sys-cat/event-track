@@ -63,6 +63,8 @@ type ListTable struct {
   Name string `json:"name"`
 }
 
+type GetReport struct {}
+
 var Master MasterTable = MasterTable{"events", "client_master", "genre_master"}
 var con string
 var db *sql.DB
@@ -151,36 +153,22 @@ func addRecord(c *gin.Context) {
   var req Request
   c.BindJSON(&req)
   // Set environment
-  var table string
-  if req.ENV == "production" {
-    table = "pro_event"
-  } else {
-    table = "stg_event"
-  }
+  var table string = fmt.Sprintf("%d_event", req.EID)
   query_body := "insert into %s (rid, event_id, referer, client_id, genre_id, other, created_at) values(\"%s\", %d, \"%s\", %d, %d, \"%s\" ,\"%s\")"
   q := fmt.Sprintf(query_body, table, req.RID, req.EID, req.REF, req.CLI, req.GEN, req.OTH, time.Now().Format("2006-01-02 15:04:05"))
   query, err := db.Prepare(q)
   if err != nil {
     log.Println(err)
-    c.JSON(500, gin.H{
-      "status": "500",
-      "error": "cant add record.",
-    })
+    c.JSON(500, gin.H{"status": "500",})
   }
   defer query.Close()
   result, err := query.Exec()
   if err != nil {
     log.Println(err)
-    c.JSON(500, gin.H{
-      "status": "500",
-      "error": "cant add record.",
-    })
+    c.JSON(500, gin.H{"status": "500",})
   }
   log.Println(fmt.Sprintf("[Info] success Record.detail : %s", result))
-  c.JSON(200, gin.H{
-    "status" : "200",
-    "message" : "add record done.",
-  })
+  c.JSON(200, gin.H{"status" : "200",})
 }
 
 func addEvent(c *gin.Context) {
@@ -188,36 +176,66 @@ func addEvent(c *gin.Context) {
   // Getting Request Paramaters
   var req ReqEvent
   c.BindJSON(&req)
-  fmt.Println(fmt.Sprintf("paramater is %s", req))
+  var where []string
+  if req.ID != 0 {
+    where = append(where, fmt.Sprintf("id=%d", req.ID))
+  }
   // create add event query
-  var q string
-  if req.ID == 0 {
-    q = fmt.Sprintf("insert into events (name, created_at, updated_at) values(\"%s\", \"%s\", \"%s\")", req.NAME, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"))
+  var sql string
+  if selectRecord(Master.Event, where) > 0 {
+    sql = fmt.Sprintf("update events set name = \"%s\", created_at = \"%s\", updated_at = \"%s\" where id = %d", req.NAME, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"), req.ID)
   } else {
-    q = fmt.Sprintf("insert into events (id, name, created_at, updated_at) values(%d, \"%s\", \"%s\", \"%s\")", req.ID, req.NAME, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"))
+    if req.ID != 0 {
+      sql = fmt.Sprintf("insert into events (id, name, created_at, updated_at) values(%d, \"%s\", \"%s\", \"%s\")", req.ID, req.NAME, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"))
+    } else {
+      sql = fmt.Sprintf("insert into events (name, created_at, updated_at) values(\"%s\", \"%s\", \"%s\")", req.ID, req.NAME, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"))
+    }
   }
-  query, err := db.Prepare(q)
+  query1, err := db.Prepare(sql)
   if err != nil {
     log.Println(err)
-    c.JSON(500, gin.H{
-      "status":"500",
-      "error":"cant create query",
-    })
+    c.JSON(500, gin.H{"status":"500",})
   }
-  defer query.Close()
-  result, err := query.Exec()
+  defer query1.Close()
+  result, err := query1.Exec()
   if err != nil {
     log.Println(err)
-    c.JSON(500, gin.H{
-      "status":"500",
-      "error":"cant create query",
-    })
+    c.JSON(500, gin.H{"status":"500",})
+  } else {
+    log.Println(fmt.Sprintf("[Info] success Event.detail : %s", result))
+    sql = fmt.Sprintf("select id from events where name=\"%s\" limit 1", req.NAME)
+    query2, err := db.Query(sql)
+    if err != nil {log.Println(err)}
+    defer query2.Close()
+    var id int64
+    for query2.Next() {
+      if err := query2.Scan(&id); err != nil {log.Println(fmt.Sprintf("[Error] can not select event id.detail: %s", err))}
+    }
+    sql = `CREATE TABLE IF NOT EXISTS %s (
+      id int(11) unsigned NOT NULL AUTO_INCREMENT,
+      rid varchar(256) NOT NULL DEFAULT '',
+      event_id int(11) NOT NULL DEFAULT 0,
+      referer varchar(1024) DEFAULT NULL,
+      client_id int(11) NOT NULL DEFAULT 0,
+      genre_id int(11) NOT NULL DEFAULT 0,
+      other text,
+      created_at datetime NOT NULL,
+      PRIMARY KEY (id),
+      INDEX(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;`
+    table := fmt.Sprintf("%d_event", id)
+    sql = fmt.Sprintf(sql, table)
+    query3, err := db.Prepare(sql)
+    if err != nil {log.Println(fmt.Sprintf("[Error] can not prepare sql.detail: %s", err))}
+    defer query3.Close()
+    result, err := query3.Exec()
+    log.Println(fmt.Sprintf("[Info] create event_id table.detail: %s", result))
+    if err != nil {
+      c.JSON(500, gin.H{"status":"500",})
+    } else {
+      c.JSON(200, gin.H{"status":"200",})
+    }
   }
-  log.Println(fmt.Sprintf("[Info] success Event.detail : %s", result))
-  c.JSON(200, gin.H{
-    "status":"200",
-    "message":"add event done.",
-  })
 }
 
 func getReport(c *gin.Context) {
@@ -225,12 +243,7 @@ func getReport(c *gin.Context) {
   // Getting Request Paramaters
   var req ReqReport
   c.BindJSON(&req)
-  var table string
-  if req.ENV == "production" {
-    table = "pro_event"
-  } else {
-    table = "stg_event"
-  }
+  var table string = fmt.Sprintf("%d_event", req.ID)
   // create get event report query
   q := fmt.Sprintf("select date_format(%s.created_at, '%%m') as month, date_format(%s.created_at, '%%d') as day, events.name, count(%s.id) as id from events left join %s on events.id = %s.event_id where events.id = %d group by date_format(%s.created_at, '%%Y%%m%%d')", table, table, table, table, table, req.ID, table)
   log.Println(fmt.Sprintf("[Info] SQL %s", q))
