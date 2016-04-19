@@ -52,7 +52,18 @@ type ReqEditGenre struct {
   NAME string `json:"name"`
 }
 
+type MasterTable struct {
+  Event string
+  Client string
+  Genre string
+}
 
+type ListTable struct {
+  Id int64 `json:"id"`
+  Name string `json:"name"`
+}
+
+var Master MasterTable = MasterTable{"events", "client_master", "genre_master"}
 var con string
 var db *sql.DB
 
@@ -97,12 +108,22 @@ func main() {
       "result":"OK",
     })
   })
+  // for version 2.0
+  v1 := router.Group("/v1")
+  {
+    v1.POST("/add", addRecord)
+    v1.POST("/report/:all", getReport)
+    v1.POST("/master/event", addEvent)
+    v1.POST("/master/client", editClient)
+    v1.POST("/master/genre", editGenre)
+    v1.GET("/master/list/:type", listMaster)
+  }
   router.Run(":8080")
 }
 
 func selectRecord(table string, wheres []string)(count int) {
   var where string
-  for var key, value := range wheres {
+  for key, value := range wheres {
     if key == 0 {
       where = fmt.Sprintf("%s", value)
     } else {
@@ -136,7 +157,8 @@ func addRecord(c *gin.Context) {
   } else {
     table = "stg_event"
   }
-  q := fmt.Sprintf("insert into %s (rid, event_id, referer, client_id, genre_id, other, created_at) values(\"%s\", %d, \"%s\", %d, %d, \"%s\" ,\"%s\")", table, req.RID, req.EID, req.REF, req.CLI, req.GEN, req.OTH, time.Now().Format("2006-01-02 15:04:05"))
+  query_body := "insert into %s (rid, event_id, referer, client_id, genre_id, other, created_at) values(\"%s\", %d, \"%s\", %d, %d, \"%s\" ,\"%s\")"
+  q := fmt.Sprintf(query_body, table, req.RID, req.EID, req.REF, req.CLI, req.GEN, req.OTH, time.Now().Format("2006-01-02 15:04:05"))
   query, err := db.Prepare(q)
   if err != nil {
     log.Println(err)
@@ -254,10 +276,20 @@ func editClient(c *gin.Context) {
   // Set Request Paramaters
   var req ReqEditClient
   c.BindJSON(&req)
+  var where []string
+  if req.ID != 0 {
+    where = append(where, fmt.Sprintf("id=%d", req.ID))
+  }
   var sql string
-  //sql = fmt.Sprintf("update client_master set name = \"%s\" where id = %d", req.NAME, req.ID)
-  sql = fmt.Sprintf("insert into client_master(name) values(\"%s\")", req.NAME)
-  log.Println(sql)
+  if selectRecord(Master.Client, where) > 0 {
+    sql = fmt.Sprintf("update client_master set name = \"%s\" where id = %d", req.NAME, req.ID)
+  } else {
+    if req.ID != 0 {
+      sql = fmt.Sprintf("insert into client_master(id, name) values(%d, \"%s\")", req.ID, req.NAME)
+    } else {
+      sql = fmt.Sprintf("insert into client_master(name) values(\"%s\")", req.NAME)
+    }
+  }
   query, err := db.Prepare(sql)
   if err != nil {
     log.Println(err)
@@ -278,7 +310,6 @@ func editClient(c *gin.Context) {
   log.Println(fmt.Sprintf("[Info] success Event.detail : %s", result))
   c.JSON(200, gin.H{
     "status":"200",
-    "value":result,
   })
 }
 
@@ -286,11 +317,19 @@ func editGenre(c *gin.Context) {
   setAccessHeader(c)
   var req ReqEditGenre
   c.BindJSON(&req)
-  var sql string
+  var where []string
   if req.ID != 0 {
+    where = append(where, fmt.Sprintf("id=%d", req.ID))
+  }
+  var sql string
+  if selectRecord(Master.Genre, where) > 0 {
     sql = fmt.Sprintf("update genre_master set name = \"%s\" where id = %d", req.NAME, req.ID)
   } else {
-    sql = fmt.Sprintf("insert into genre_master(name) values(\"%s\")", req.NAME)
+    if req.ID != 0 {
+      sql = fmt.Sprintf("insert into genre_master(id, name) values(%d, \"%s\")", req.ID, req.NAME)
+    } else {
+      sql = fmt.Sprintf("insert into genre_master(name) values(\"%s\")", req.NAME)
+    }
   }
   query, err := db.Prepare(sql)
   if err != nil {
@@ -312,6 +351,47 @@ func editGenre(c *gin.Context) {
   log.Println(fmt.Sprintf("[Info] success Event.detail : %s", result))
   c.JSON(200, gin.H{
     "status":"200",
-    "value":result,
+  })
+}
+
+func listMaster(c *gin.Context) {
+  setAccessHeader(c)
+  // Getting Request Paramaters
+  get_type := c.Param("type")
+  var sql string
+  switch get_type {
+  case Master.Event:
+    sql = fmt.Sprintf("select id, name from %s", Master.Event)
+  case Master.Client:
+    sql = fmt.Sprintf("select id, name from %s", Master.Client)
+  case Master.Genre:
+    sql = fmt.Sprintf("select id, name from %s", Master.Genre)
+  default:
+    c.JSON(500, gin.H{
+      "status":"500",
+      "error":"Can not use table Type.",
+    })
+  }
+  rows, err := db.Query(sql)
+  if err != nil {
+    log.Println(fmt.Sprintf("[Error] can not get data.detail: %s", err))
+  }
+  defer rows.Close()
+  var res []ListTable
+  for rows.Next() {
+    var id int64
+    var name string
+    if err:= rows.Scan(&id, &name); err != nil {
+      log.Println(fmt.Sprintf("[Error] can not scan query result.detail: %s", err))
+    }
+    row := ListTable{Id: id, Name: name}
+    res = append(res, row)
+  }
+  if err := rows.Err();err != nil {
+    log.Println(fmt.Sprintf("[Error] unknown query error.detail: %s", err))
+  }
+  c.JSON(200, gin.H{
+    "status":"200",
+    "value":res,
   })
 }
